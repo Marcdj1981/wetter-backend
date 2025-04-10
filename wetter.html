@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Digital Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      background-color: black;
+      color: white;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 30px 40px;
+    }
+    h1#dateLabel {
+      font-size: 50px;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 5px;
+    }
+    h2#cityLabel {
+      font-size: 40px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .weather-section {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .current-weather {
+      display: flex;
+      align-items: center;
+      flex: 2;
+    }
+    .current-weather img {
+      width: 100px;
+    }
+    .current-weather-info {
+      font-size: 60px;
+      font-weight: bold;
+      margin-left: 15px;
+    }
+    .forecast {
+      flex: 1;
+    }
+    .forecast-entry {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .forecast-entry img {
+      width: 50px;
+      margin-right: 10px;
+    }
+    .forecast-entry span {
+      font-size: 24px;
+    }
+    hr {
+      border: none;
+      height: 2px;
+      background-color: #444;
+      margin: 15px 0 5px;
+    }
+    #newsLabel {
+      font-size: 22px;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    #newsLabel span {
+      display: inline-block;
+      padding-left: 100%;
+      animation: scroll 20s linear infinite;
+    }
+    @keyframes scroll {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-100%); }
+    }
+  </style>
+</head>
+<body>
+  <h1 id="dateLabel"></h1>
+  <h2 id="cityLabel">Aktueller Standort: Duisburg</h2>
+
+  <div class="weather-section">
+    <div class="current-weather">
+      <img id="weatherIcon" src="" alt="">
+      <div class="current-weather-info" id="weatherInfo">Lade Wetter...</div>
+    </div>
+    <div class="forecast" id="forecastBox">
+      <!-- Forecast entries will go here -->
+    </div>
+  </div>
+
+  <hr>
+  <div id="newsLabel"><span id="newsText">Lade Nachrichten...</span></div>
+
+  <script>
+    const city = "Duisburg";
+    const apiKey = "5881c995073d1926ef672715e24b1fe4";
+    const lang = "de";
+    const units = "metric";
+    const newsFeed = "https://www.spiegel.de/schlagzeilen/tops/index.rss";
+
+    function updateTime() {
+      const now = new Date();
+      const days = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+      const months = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+      const dateStr = `${days[now.getDay()]}, ${now.getDate()}. ${months[now.getMonth()]} ${now.getFullYear()}`;
+      document.getElementById("dateLabel").textContent = dateStr;
+    }
+
+    async function updateWeather() {
+      try {
+        const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=${units}&lang=${lang}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const temp = Math.round(data.main.temp);
+        const desc = data.weather[0].description;
+        const icon = data.weather[0].icon;
+
+        document.getElementById("weatherIcon").src = `http://openweathermap.org/img/wn/${icon}@4x.png`;
+        document.getElementById("weatherInfo").textContent = `${temp}°C\n${desc}`;
+      } catch (err) {
+        document.getElementById("weatherInfo").textContent = "Wetter nicht verfügbar";
+      }
+    }
+
+    async function updateForecast() {
+      const box = document.getElementById("forecastBox");
+      box.innerHTML = "";
+      try {
+        const url = `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${apiKey}&units=${units}&lang=${lang}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        const addedDates = new Set();
+        for (const entry of data.list) {
+          const [date, time] = entry.dt_txt.split(" ");
+          if (!addedDates.has(date) && addedDates.size < 3 && time.startsWith("12")) {
+            addedDates.add(date);
+            const dateObj = new Date(date);
+            const day = ["So","Mo","Di","Mi","Do","Fr","Sa"][dateObj.getDay()];
+            const temp = Math.round(entry.main.temp);
+            const desc = entry.weather[0].description;
+            const icon = entry.weather[0].icon;
+
+            const div = document.createElement("div");
+            div.className = "forecast-entry";
+            div.innerHTML = `<img src="http://openweathermap.org/img/wn/${icon}@2x.png" alt=""><span>${day}: ${temp}°C, ${desc}</span>`;
+            box.appendChild(div);
+          }
+        }
+      } catch (err) {
+        box.innerHTML = "<div class='forecast-entry'><span>Vorhersage nicht verfügbar</span></div>";
+      }
+    }
+
+    async function updateNews() {
+      try {
+        const proxy = "https://api.allorigins.win/get?url=";
+        const feedUrl = encodeURIComponent(newsFeed);
+        const res = await fetch(`${proxy}${feedUrl}`);
+        const data = await res.json();
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(data.contents, "text/xml");
+        const items = xml.querySelectorAll("item");
+        const headlines = Array.from(items).slice(0, 10).map(item => item.querySelector("title").textContent.trim());
+
+        if (headlines.length > 0) {
+          document.getElementById("newsText").textContent = headlines.join("   +++   ");
+        } else {
+          document.getElementById("newsText").textContent = "Keine Nachrichten gefunden.";
+        }
+      } catch (err) {
+        document.getElementById("newsText").textContent = "Fehler beim Laden der Nachrichten.";
+      }
+    }
+
+    updateTime();
+    updateWeather();
+    updateForecast();
+    updateNews();
+    setInterval(updateTime, 1000);
+    setInterval(() => {
+      updateWeather();
+      updateForecast();
+      updateNews();
+    }, 600000);
+  </script>
+</body>
+</html>
