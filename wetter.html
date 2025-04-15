@@ -157,25 +157,21 @@
     }
 
     async function updateNews() {
-      try {
-        const proxy = "https://api.allorigins.win/get?url=";
-        const feedUrl = encodeURIComponent(newsFeed);
-        const res = await fetch(`${proxy}${feedUrl}`);
-        const data = await res.json();
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(data.contents, "text/xml");
-        const items = xml.querySelectorAll("item");
-        const headlines = Array.from(items).slice(0, 10).map(item => item.querySelector("title").textContent.trim());
+  try {
+    const feedUrl = "https://www.spiegel.de/schlagzeilen/tops/index.rss";
+    const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`);
+    const data = await res.json();
+    const headlines = data.items.slice(0, 10).map(item => item.title.trim());
 
-        if (headlines.length > 0) {
-          document.getElementById("newsText").textContent = headlines.join("   +++   ");
-        } else {
-          document.getElementById("newsText").textContent = "Keine Nachrichten gefunden.";
-        }
-      } catch (err) {
-        document.getElementById("newsText").textContent = "Fehler beim Laden der Nachrichten.";
-      }
+    if (headlines.length > 0) {
+      document.getElementById("newsText").textContent = headlines.join("   +++   ");
+    } else {
+      document.getElementById("newsText").textContent = "Keine Nachrichten gefunden.";
     }
+  } catch (err) {
+    document.getElementById("newsText").textContent = "Fehler beim Laden der Nachrichten.";
+  }
+}
 
     updateTime();
     updateWeather();
